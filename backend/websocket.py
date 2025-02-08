@@ -4,25 +4,20 @@ from fastapi import WebSocket, WebSocketDisconnect
 from backend.utils.ffmpeg_utils import start_ffmpeg_decoder
 from model.whisper_asr import backend_factory
 from backend.logging_config import logger
+from config.settings import settings
 from time import time
 
 BYTES_PER_SAMPLE = 1
 BYTES_PER_SEC = 16000 * BYTES_PER_SAMPLE
+asr, _ = backend_factory(settings)
 
-async def handle_websocket(websocket: WebSocket, args):
-    await websocket.accept()
-    logger.info("WebSocket connection opened.")
-    
-     # Start FFmpeg decoder
-    logger.info("Starting FFmpeg decoder...")
+async def handle_websocket(websocket: WebSocket):
+
+    await websocket.accept()    
     ffmpeg_process = await start_ffmpeg_decoder()
 
-    logger.info("FFmpeg decoder started!")
-
-        # Initialize buffer and start processing loop
-    pcm_buffer = bytearray()
-    loop = asyncio.get_event_loop()
-    asr, _ = backend_factory(args)
+    # Initialize buffer and start processing loop
+    pcm_buffer = bytearray()  
 
     try:
        
@@ -31,12 +26,10 @@ async def handle_websocket(websocket: WebSocket, args):
             return
 
         logger.info("Starting audio processing loop...")
-        # Handle audio data from FFmpeg
         async def read_ffmpeg_stdout():
-
+            loop = asyncio.get_event_loop()
             nonlocal pcm_buffer
             transcribe = ""
-            init_transcribe = ""
             beg = time()
 
             while True:
@@ -47,7 +40,7 @@ async def handle_websocket(websocket: WebSocket, args):
                     elapsed_time = int(time() - beg)
                     beg = time()
                     # Read audio chunk from FFmpeg process
-                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, BYTES_PER_SEC * elapsed_time)
+                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, BYTES_PER_SEC * 2 * elapsed_time)
                     if not chunk:
                         chunk = await loop.run_in_executor(
                             None, ffmpeg_process.stdout.read, 4096
@@ -56,27 +49,20 @@ async def handle_websocket(websocket: WebSocket, args):
                             logger.warning("FFmpeg stdout closed.")
                             break
 
-                    logger.info(f"Received chunk: {len(chunk)} bytes")
                     pcm_buffer.extend(chunk)
-
-                    # Process PCM data if buffer has enough data
                     logger.info(f"Buffer size: {len(pcm_buffer)} bytes")
+
                     if len(pcm_buffer) >= BYTES_PER_SEC:
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
                         pcm_buffer = bytearray()
                         logger.info(f"Buffer ready for transcription, size: {len(pcm_array)}")
 
                         # Transcribe the audio and send back a response
-                        transcription = asr.transcribe(pcm_array, init_prompt=(" ".join(init_transcribe.split()[-4:]) if len(init_transcribe.split()) > 4 else init_transcribe))
+                        transcription = asr.transcribe(pcm_array)
                         tokenize_transcription = asr.ts_words(transcription)
-
-                        init_transcribe = init_transcribe + " ".join([t for (a, b, t) in tokenize_transcription])
-
-
+                        print(tokenize_transcription)
                         if len(tokenize_transcription) >= 2:
-                            print(len(tokenize_transcription))
                             tokenize_transcription.pop()
-                            print(len(tokenize_transcription))
 
                         transcribe = transcribe + " ".join([t for (a, b, t) in tokenize_transcription])
 
@@ -91,26 +77,33 @@ async def handle_websocket(websocket: WebSocket, args):
         stdout_reader_task = asyncio.create_task(read_ffmpeg_stdout())
 
         # Main WebSocket loop to receive audio data and send to FFmpeg
-        while True:
-            try:
-                logger.info("Waiting for WebSocket data...")
+        try:
+            while True:
+                # Receive incoming WebM audio chunks from the client
                 message = await websocket.receive_bytes()
-                logger.info(f"Received {len(message)} bytes from WebSocket.")
+                # Pass them to ffmpeg via stdin
                 ffmpeg_process.stdin.write(message)
                 ffmpeg_process.stdin.flush()
 
-            except WebSocketDisconnect:
-                logger.info("WebSocket connection closed.")
-                break
-            except Exception as e:
-                logger.error(f"Error in WebSocket loop: {e}")
-                break
+        except WebSocketDisconnect:
+            print("WebSocket connection closed.")
+        except Exception as e:
+            print(f"Error in websocket loop: {e}")
+        finally:
+            # Clean up ffmpeg and the reader task
+            try:
+                ffmpeg_process.stdin.close()
+            except:
+                pass
+            stdout_reader_task.cancel()
 
+            try:
+                ffmpeg_process.stdout.close()
+            except:
+                pass
+
+            ffmpeg_process.wait()
+            del online
+    
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-    
-    finally:
-        ffmpeg_process.stdin.close()
-        stdout_reader_task.cancel()
-        await ffmpeg_process.wait()
-        logger.info("FFmpeg process closed.")
