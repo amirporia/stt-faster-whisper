@@ -45,7 +45,7 @@ def add_shared_args(parser):
     parser.add_argument(
         "--model",
         type=str,
-        default="small.en",
+        default="small",
         choices="tiny.en,tiny,base.en,base,small.en,small,medium.en,medium,large-v1,large-v2,large-v3,large,large-v3-turbo".split(
             ","
         ),
