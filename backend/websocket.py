@@ -11,9 +11,44 @@ BYTES_PER_SAMPLE = 1
 BYTES_PER_SEC = 16000 * BYTES_PER_SAMPLE
 asr, _ = backend_factory(settings)
 
+# def trim_audio_buffer(pcm_buffer, tokenize_transcription, buffer_duration=30):
+#     """
+#     Trim the buffer when a sentence is completed or buffer exceeds `buffer_duration` seconds.
+
+#     Args:
+#         pcm_buffer (bytearray): The audio buffer.
+#         tokenize_transcription (list): List of (start_time, end_time, word) tuples.
+#         buffer_duration (int): The maximum buffer duration before forced trimming.
+
+#     Returns:
+#         bytearray: Trimmed buffer.
+#     """
+#     if not tokenize_transcription:
+#         return pcm_buffer
+
+#     # Find the latest sentence-ending punctuation
+#     last_sentence_end_time = None
+#     for start_time, end_time, word in reversed(tokenize_transcription):
+#         if any(p in word for p in {".", "!", "?"}):
+#             last_sentence_end_time = end_time
+#             break  # Stop at the most recent sentence-ending punctuation
+
+#     # Convert timestamp to bytes
+#     bytes_to_remove = int(last_sentence_end_time * BYTES_PER_SEC) if last_sentence_end_time else 0
+
+#     # Check if buffer exceeds 10 seconds
+#     if len(pcm_buffer) > buffer_duration * BYTES_PER_SEC:
+#         bytes_to_remove = max(bytes_to_remove, len(pcm_buffer) - buffer_duration * BYTES_PER_SEC)
+
+#     # Trim buffer
+#     pcm_buffer = pcm_buffer[bytes_to_remove:]
+
+#     return pcm_buffer
+
+
+
 
 def transcription_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
-    
     sliced_tokenize_transcription = [" ".join(t.split()) for a,b,t in tokenize_transcription]
 
     if len(non_confirmed_transcription) == 0 or non_confirmed_transcription[0] != sliced_tokenize_transcription[0]:
@@ -76,7 +111,7 @@ async def handle_websocket(websocket: WebSocket):
                     pcm_buffer.extend(chunk)
                     logger.info(f"Buffer size: {len(pcm_buffer)} bytes")
 
-                    if len(pcm_buffer) >= BYTES_PER_SEC:
+                    if len(pcm_buffer) >= BYTES_PER_SEC / 5:
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
                         # pcm_buffer = bytearray()
                         logger.info(f"Buffer ready for transcription, size: {len(pcm_array)}")
