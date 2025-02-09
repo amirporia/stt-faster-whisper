@@ -119,7 +119,7 @@ async def handle_websocket(websocket: WebSocket):
                         # Transcribe the audio and send back a response
                         transcription = asr.transcribe(pcm_array)
                         tokenize_transcription = asr.ts_words(transcription)
-
+                        print("f{tokenize_transcription}=")
                         transcribe = transcription_process(transcribe, tokenize_transcription, confirmed_transciption)
                         logger.info(f"confirmed_transciption: {" ".join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
@@ -132,32 +132,35 @@ async def handle_websocket(websocket: WebSocket):
         stdout_reader_task = asyncio.create_task(read_ffmpeg_stdout())
 
         # Main WebSocket loop to receive audio data and send to FFmpeg
-        while True:
+        try:
+            while True:
+                try:
+                    # Receive incoming WebM audio chunks from the client
+                    message = await websocket.receive_bytes()
+                    # Pass them to ffmpeg via stdin
+                    ffmpeg_process.stdin.write(message)
+                    ffmpeg_process.stdin.flush()
+                except Exception as e:
+                    logger.error(f"Unexpected error: {e}")
+                
+        except WebSocketDisconnect:
+            print("WebSocket connection closed.")
+        except Exception as e:
+            print(f"Error in websocket loop: {e}")
+        finally:
+            # Clean up ffmpeg and the reader task
             try:
-                # Receive incoming WebM audio chunks from the client
-                message = await websocket.receive_bytes()
-                # Pass them to ffmpeg via stdin
-                ffmpeg_process.stdin.write(message)
-                ffmpeg_process.stdin.flush()
+                ffmpeg_process.stdin.close()
+            except:
+                pass
+            stdout_reader_task.cancel()
 
-            except WebSocketDisconnect:
-                print("WebSocket connection closed.")
-            except Exception as e:
-                print(f"Error in websocket loop: {e}")
-            finally:
-                # Clean up ffmpeg and the reader task
-                try:
-                    ffmpeg_process.stdin.close()
-                except:
-                    pass
-                stdout_reader_task.cancel()
+            try:
+                ffmpeg_process.stdout.close()
+            except:
+                pass
 
-                try:
-                    ffmpeg_process.stdout.close()
-                except:
-                    pass
-
-                ffmpeg_process.wait()
+            ffmpeg_process.wait()
     
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
