@@ -7,46 +7,10 @@ from backend.logging_config import logger
 from config.settings import settings
 from time import time
 
+SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 1
-BYTES_PER_SEC = 16000 * BYTES_PER_SAMPLE
+BYTES_PER_SEC = SAMPLE_RATE * BYTES_PER_SAMPLE
 asr, _ = backend_factory(settings)
-
-# def trim_audio_buffer(pcm_buffer, tokenize_transcription, buffer_duration=30):
-#     """
-#     Trim the buffer when a sentence is completed or buffer exceeds `buffer_duration` seconds.
-
-#     Args:
-#         pcm_buffer (bytearray): The audio buffer.
-#         tokenize_transcription (list): List of (start_time, end_time, word) tuples.
-#         buffer_duration (int): The maximum buffer duration before forced trimming.
-
-#     Returns:
-#         bytearray: Trimmed buffer.
-#     """
-#     if not tokenize_transcription:
-#         return pcm_buffer
-
-#     # Find the latest sentence-ending punctuation
-#     last_sentence_end_time = None
-#     for start_time, end_time, word in reversed(tokenize_transcription):
-#         if any(p in word for p in {".", "!", "?"}):
-#             last_sentence_end_time = end_time
-#             break  # Stop at the most recent sentence-ending punctuation
-
-#     # Convert timestamp to bytes
-#     bytes_to_remove = int(last_sentence_end_time * BYTES_PER_SEC) if last_sentence_end_time else 0
-
-#     # Check if buffer exceeds 10 seconds
-#     if len(pcm_buffer) > buffer_duration * BYTES_PER_SEC:
-#         bytes_to_remove = max(bytes_to_remove, len(pcm_buffer) - buffer_duration * BYTES_PER_SEC)
-
-#     # Trim buffer
-#     pcm_buffer = pcm_buffer[bytes_to_remove:]
-
-#     return pcm_buffer
-
-
-
 
 def transcription_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
     sliced_tokenize_transcription = [" ".join(t.split()) for a,b,t in tokenize_transcription]
@@ -69,6 +33,55 @@ def transcription_process(non_confirmed_transcription, tokenize_transcription, c
     return non_confirmed_transcription
 
 
+import numpy as np
+
+def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, offset_buffer, sample_rate=16000, bytes_per_sample=2):
+    """
+    Remove audio from pcm_buffer when a complete sentence (ending with . , ? , ! ) is confirmed.
+    
+    :param pcm_buffer: The bytearray containing the audio buffer.
+    :param tokenize_transcription: List of tuples (start_time, end_time, word) from FasterWhisperASR.
+    :param confirmed_transcription: List of confirmed sentences.
+    :param sample_rate: Sample rate of the audio (default: 16,000 Hz).
+    :param bytes_per_sample: Number of bytes per sample (default: 2 for 16-bit PCM).
+    """
+    if not confirmed_transcription:
+        return offset_buffer, non_confirmed_transcription  # No confirmed sentences to remove
+    
+    # Find the last confirmed sentence ending with ., ?, or !
+    last_sentence = None
+    for sentence in reversed(confirmed_transcription):
+        if sentence.strip().endswith(('.', '?', '!')):
+            last_sentence = sentence
+            break
+
+
+    if not last_sentence:
+        return offset_buffer, non_confirmed_transcription  # No complete sentence found, do not trim buffer
+    
+    confirmed_words = last_sentence.split()
+    end_time = None
+    end_word_idx = 0
+    
+    # Find the corresponding end timestamp of the last word in the sentence
+    for start, end, word in tokenize_transcription:
+        if confirmed_words[-1] in word:
+            end_time = end
+    
+    for idx in range(len(non_confirmed_transcription)):
+        if confirmed_words[-1] in non_confirmed_transcription[idx]:
+            end_word_idx = idx
+    
+    if end_time is None:
+        return offset_buffer, non_confirmed_transcription  # No match found, do not trim buffer
+    
+    # Compute bytes to remove
+    bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
+    # Trim buffer   
+    return bytes_to_remove, non_confirmed_transcription[end_word_idx + 1:]
+
+
+
 async def handle_websocket(websocket: WebSocket):
 
     await websocket.accept()    
@@ -89,6 +102,7 @@ async def handle_websocket(websocket: WebSocket):
             nonlocal pcm_buffer
             transcribe = []
             confirmed_transciption = []
+            offset_buffer = 0
             beg = time()
 
             while True:
@@ -99,7 +113,7 @@ async def handle_websocket(websocket: WebSocket):
                     elapsed_time = int(time() - beg)
                     beg = time()
                     # Read audio chunk from FFmpeg process
-                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, BYTES_PER_SEC * 2 * elapsed_time)
+                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, 32000 * elapsed_time)
                     if not chunk:
                         chunk = await loop.run_in_executor(
                             None, ffmpeg_process.stdout.read, 4096
@@ -108,19 +122,24 @@ async def handle_websocket(websocket: WebSocket):
                             logger.warning("FFmpeg stdout closed.")
                             break
 
+                    logger.info(f"BYTES_PER_SEC * 2 * elapsed_time size: {BYTES_PER_SEC * 2 * elapsed_time} bytes")
                     pcm_buffer.extend(chunk)
+                    logger.info(f"chunk size: {len(chunk)} bytes")
                     logger.info(f"Buffer size: {len(pcm_buffer)} bytes")
 
-                    if len(pcm_buffer) >= BYTES_PER_SEC / 5:
+                    if len(pcm_buffer) >= BYTES_PER_SEC:
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
                         # pcm_buffer = bytearray()
                         logger.info(f"Buffer ready for transcription, size: {len(pcm_array)}")
 
                         # Transcribe the audio and send back a response
-                        transcription = asr.transcribe(pcm_array)
+                        transcription = asr.transcribe(pcm_array[offset_buffer:])
                         tokenize_transcription = asr.ts_words(transcription)
-                        print("f{tokenize_transcription}=")
+                        print("$$$$$$$$$$$$$$$$$$$$$$$$$$", " ".join([" ".join(t.split()) for a,b,t in tokenize_transcription]))
+                        print("##########################", " ".join(transcribe))
                         transcribe = transcription_process(transcribe, tokenize_transcription, confirmed_transciption)
+                        print("&&&&&&&&&&&&&&&&&&&&&&&&&", confirmed_transciption)
+                        offset_buffer, transcribe = trim_audio_buffer_offset(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, offset_buffer=offset_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
                         logger.info(f"confirmed_transciption: {" ".join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
