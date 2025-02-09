@@ -1,5 +1,4 @@
 import ffmpeg
-import asyncio
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
