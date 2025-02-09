@@ -56,7 +56,7 @@ def transcription_process(non_confirmed_transcription, tokenize_transcription, c
     elif len(non_confirmed_transcription) > 0:
         idx = len(confirmed_transciption)
         while idx < min(len(non_confirmed_transcription), len(sliced_tokenize_transcription)):
-            if non_confirmed_transcription[idx] == sliced_tokenize_transcription[idx]:
+            if (non_confirmed_transcription[idx]).lower() == (sliced_tokenize_transcription[idx]).lower():
                 confirmed_transciption.append(non_confirmed_transcription[idx])
                 idx += 1
             else:
@@ -121,7 +121,7 @@ async def handle_websocket(websocket: WebSocket):
                         tokenize_transcription = asr.ts_words(transcription)
 
                         transcribe = transcription_process(transcribe, tokenize_transcription, confirmed_transciption)
-                        logger.info(f"@@@@@@@@@@@@@@@@@@@@@@@@@@@: {" ".join(confirmed_transciption)}")
+                        logger.info(f"confirmed_transciption: {" ".join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
 
@@ -132,33 +132,32 @@ async def handle_websocket(websocket: WebSocket):
         stdout_reader_task = asyncio.create_task(read_ffmpeg_stdout())
 
         # Main WebSocket loop to receive audio data and send to FFmpeg
-        try:
-            while True:
+        while True:
+            try:
                 # Receive incoming WebM audio chunks from the client
                 message = await websocket.receive_bytes()
                 # Pass them to ffmpeg via stdin
                 ffmpeg_process.stdin.write(message)
                 ffmpeg_process.stdin.flush()
 
-        except WebSocketDisconnect:
-            print("WebSocket connection closed.")
-        except Exception as e:
-            print(f"Error in websocket loop: {e}")
-        finally:
-            # Clean up ffmpeg and the reader task
-            try:
-                ffmpeg_process.stdin.close()
-            except:
-                pass
-            stdout_reader_task.cancel()
+            except WebSocketDisconnect:
+                print("WebSocket connection closed.")
+            except Exception as e:
+                print(f"Error in websocket loop: {e}")
+            finally:
+                # Clean up ffmpeg and the reader task
+                try:
+                    ffmpeg_process.stdin.close()
+                except:
+                    pass
+                stdout_reader_task.cancel()
 
-            try:
-                ffmpeg_process.stdout.close()
-            except:
-                pass
+                try:
+                    ffmpeg_process.stdout.close()
+                except:
+                    pass
 
-            ffmpeg_process.wait()
-            del online
+                ffmpeg_process.wait()
     
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
