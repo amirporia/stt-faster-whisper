@@ -8,17 +8,28 @@ from config.settings import settings
 from time import time
 
 SAMPLE_RATE = 16000
-BYTES_PER_SAMPLE = 1
+BYTES_PER_SAMPLE = 2
 BYTES_PER_SEC = SAMPLE_RATE * BYTES_PER_SAMPLE
 asr, _ = backend_factory(settings)
 
-def transcription_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
+def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
     sliced_tokenize_transcription = [" ".join(t.split()) for a,b,t in tokenize_transcription]
+
+    if len(confirmed_transciption) > 0:
+        idx = len(confirmed_transciption) - 1
+        while idx != -1:
+            if confirmed_transciption[idx].strip().endswith(('.', '?', '!')):
+                if idx != len(confirmed_transciption) - 1:
+                    confirmed_transciption = confirmed_transciption[:idx + 1]
+                break
+            idx -= 1
+        if idx == -1:
+            confirmed_transciption = []        
 
     if len(non_confirmed_transcription) == 0 or non_confirmed_transcription[0] != sliced_tokenize_transcription[0]:
         non_confirmed_transcription = sliced_tokenize_transcription
     elif len(non_confirmed_transcription) > 0:
-        idx = len(confirmed_transciption)
+        idx = 0
         while idx < min(len(non_confirmed_transcription), len(sliced_tokenize_transcription)):
             if (non_confirmed_transcription[idx]).lower() == (sliced_tokenize_transcription[idx]).lower():
                 confirmed_transciption.append(non_confirmed_transcription[idx])
@@ -30,12 +41,10 @@ def transcription_process(non_confirmed_transcription, tokenize_transcription, c
         else:
             non_confirmed_transcription[idx:] = sliced_tokenize_transcription[idx:]
 
-    return non_confirmed_transcription
+    return non_confirmed_transcription, confirmed_transciption
 
 
-import numpy as np
-
-def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, offset_buffer, sample_rate=16000, bytes_per_sample=2):
+def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, sample_rate=16000, bytes_per_sample=2):
     """
     Remove audio from pcm_buffer when a complete sentence (ending with . , ? , ! ) is confirmed.
     
@@ -46,7 +55,7 @@ def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription
     :param bytes_per_sample: Number of bytes per sample (default: 2 for 16-bit PCM).
     """
     if not confirmed_transcription:
-        return offset_buffer, non_confirmed_transcription  # No confirmed sentences to remove
+        return 0, non_confirmed_transcription  # No confirmed sentences to remove
     
     # Find the last confirmed sentence ending with ., ?, or !
     last_sentence = None
@@ -57,7 +66,7 @@ def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription
 
 
     if not last_sentence:
-        return offset_buffer, non_confirmed_transcription  # No complete sentence found, do not trim buffer
+        return 0, non_confirmed_transcription  # No complete sentence found, do not trim buffer
     
     confirmed_words = last_sentence.split()
     end_time = None
@@ -73,7 +82,7 @@ def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription
             end_word_idx = idx
     
     if end_time is None:
-        return offset_buffer, non_confirmed_transcription  # No match found, do not trim buffer
+        return 0, non_confirmed_transcription  # No match found, do not trim buffer
     
     # Compute bytes to remove
     bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
@@ -122,25 +131,20 @@ async def handle_websocket(websocket: WebSocket):
                             logger.warning("FFmpeg stdout closed.")
                             break
 
-                    logger.info(f"BYTES_PER_SEC * 2 * elapsed_time size: {BYTES_PER_SEC * 2 * elapsed_time} bytes")
                     pcm_buffer.extend(chunk)
                     logger.info(f"chunk size: {len(chunk)} bytes")
                     logger.info(f"Buffer size: {len(pcm_buffer)} bytes")
 
                     if len(pcm_buffer) >= BYTES_PER_SEC:
+                        pcm_buffer = pcm_buffer[offset_buffer:]
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
-                        # pcm_buffer = bytearray()
-                        logger.info(f"Buffer ready for transcription, size: {len(pcm_array)}")
 
                         # Transcribe the audio and send back a response
-                        transcription = asr.transcribe(pcm_array[offset_buffer:])
+                        transcription = asr.transcribe(pcm_array, init_prompt=" ".join(confirmed_transciption))
                         tokenize_transcription = asr.ts_words(transcription)
-                        print("$$$$$$$$$$$$$$$$$$$$$$$$$$", " ".join([" ".join(t.split()) for a,b,t in tokenize_transcription]))
-                        print("##########################", " ".join(transcribe))
-                        transcribe = transcription_process(transcribe, tokenize_transcription, confirmed_transciption)
-                        print("&&&&&&&&&&&&&&&&&&&&&&&&&", confirmed_transciption)
-                        offset_buffer, transcribe = trim_audio_buffer_offset(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, offset_buffer=offset_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
-                        logger.info(f"confirmed_transciption: {" ".join(confirmed_transciption)}")
+                        transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
+                        offset_buffer, transcribe = trim_audio_buffer_offset(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                        logger.info(f"confirmed_transciption: {' '.join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
 
