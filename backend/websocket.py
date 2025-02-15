@@ -122,8 +122,12 @@ async def handle_websocket(websocket: WebSocket):
                 try:
                     elapsed_time = int(time() - beg)
                     beg = time()
+                    if ffmpeg_process is None:
+                        logger.error("FFmpeg process failed to start.")
+                        return
+                    
                     # Read audio chunk from FFmpeg process
-                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, 32000 * elapsed_time)
+                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, 32000 * max(1, elapsed_time))
                     if not chunk:
                         chunk = await loop.run_in_executor(
                             None, ffmpeg_process.stdout.read, 4096
