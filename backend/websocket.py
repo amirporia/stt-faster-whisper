@@ -69,17 +69,17 @@ def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription
     if not last_sentence:
         return 0, non_confirmed_transcription  # No complete sentence found, do not trim buffer
     
-    confirmed_words = last_sentence.split()
+    confirmed_words = last_sentence.strip()
     end_time = None
     end_word_idx = 0
     
     # Find the corresponding end timestamp of the last word in the sentence
     for start, end, word in tokenize_transcription:
-        if confirmed_words[-1] in remove_punctuation(word):
+        if confirmed_words in remove_punctuation(word):
             end_time = end
     
     for idx in range(len(non_confirmed_transcription)):
-        if confirmed_words[-1] in non_confirmed_transcription[idx]:
+        if confirmed_words in non_confirmed_transcription[idx]:
             end_word_idx = idx
     
     if end_time is None:
@@ -141,14 +141,14 @@ async def handle_websocket(websocket: WebSocket):
                     logger.info(f"Buffer size: {len(pcm_buffer)} bytes")
 
                     if len(pcm_buffer) >= BYTES_PER_SEC:
-                        pcm_buffer = pcm_buffer[offset_buffer:]
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
 
                         # Transcribe the audio and send back a response
-                        transcription = asr.transcribe(pcm_array, init_prompt=" ".join(confirmed_transciption))
+                        transcription = asr.transcribe(pcm_array)
                         tokenize_transcription = asr.ts_words(transcription)
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
                         offset_buffer, transcribe = trim_audio_buffer_offset(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                        pcm_buffer = pcm_buffer[offset_buffer:]
                         logger.info(f"confirmed_transciption: {' '.join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
