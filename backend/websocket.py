@@ -6,6 +6,7 @@ from model.whisper_asr import backend_factory
 from backend.logging_config import logger
 from config.settings import settings
 from time import time
+from utils.methods import remove_punctuation
 
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
@@ -13,7 +14,7 @@ BYTES_PER_SEC = SAMPLE_RATE * BYTES_PER_SAMPLE
 asr, _ = backend_factory(settings)
 
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
-    sliced_tokenize_transcription = [" ".join(t.split()) for a,b,t in tokenize_transcription]
+    sliced_tokenize_transcription = [remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription]
 
     if len(confirmed_transciption) > 0:
         idx = len(confirmed_transciption) - 1
@@ -74,7 +75,7 @@ def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription
     
     # Find the corresponding end timestamp of the last word in the sentence
     for start, end, word in tokenize_transcription:
-        if confirmed_words[-1] in word:
+        if confirmed_words[-1] in remove_punctuation(word):
             end_time = end
     
     for idx in range(len(non_confirmed_transcription)):
