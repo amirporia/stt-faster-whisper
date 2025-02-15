@@ -6,7 +6,7 @@ from model.whisper_asr import backend_factory
 from backend.logging_config import logger
 from config.settings import settings
 from time import time
-from utils.methods import remove_punctuation
+from backend.utils.methods import remove_punctuation
 
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
