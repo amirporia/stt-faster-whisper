@@ -93,10 +93,10 @@
         <label for="chunkSelector">Chunk size (ms):</label>
         <select id="chunkSelector">
           <option value="500">500 ms</option>
-          <option value="1000" selected>1000 ms</option>
+          <option value="1000">1000 ms</option>
           <option value="2000">2000 ms</option>
           <option value="3000">3000 ms</option>
-          <option value="4000">4000 ms</option>
+          <option value="4000" selected>4000 ms</option>
           <option value="5000">5000 ms</option>
         </select>
       </div>
@@ -115,7 +115,7 @@
     let isRecording = false;
     let websocket = null;
     let recorder = null;
-    let chunkDuration = 1000;
+    let chunkDuration = 4000;
     let websocketUrl = "ws://localhost:8030/asr";
     let userClosing = false;
 
