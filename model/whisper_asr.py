@@ -22,20 +22,20 @@ class FasterWhisperASR(ASRBase):
             raise ValueError("modelsize or model_dir parameter must be set")
 
         # # this worked fast and reliably on NVIDIA L40
-        # model = WhisperModel(
-        #     model_size_or_path,
-        #     device="cuda",
-        #     compute_type="float16",
-        #     download_root=cache_dir,
-        # )
-
-         # this worked fast and reliably on NVIDIA L40
         model = WhisperModel(
             model_size_or_path,
-            device="cpu",
-            compute_type="int8",
+            device="cuda",
+            compute_type="float16",
             download_root=cache_dir,
         )
+
+         # this worked fast and reliably on NVIDIA L40
+        # model = WhisperModel(
+        #     model_size_or_path,
+        #     device="cpu",
+        #     compute_type="int8",
+        #     download_root=cache_dir,
+        # )
 
         # or run on GPU with INT8
         # tested: the transcripts were different, probably worse than with FP16, and it was slightly (appx 20%) slower
