@@ -96,8 +96,6 @@ async def handle_websocket(websocket: WebSocket):
 
     await websocket.accept()    
     ffmpeg_process = await start_ffmpeg_decoder()
-
-    # Initialize buffer and start processing loop
     pcm_buffer = bytearray()  
 
     try:
@@ -105,8 +103,12 @@ async def handle_websocket(websocket: WebSocket):
         if ffmpeg_process is None:
             logger.error("FFmpeg process failed to start.")
             return
+        
+        if ffmpeg_process.poll() is not None:  
+            logger.error("FFmpeg process exited unexpectedly.1")
 
         logger.info("Starting audio processing loop...")
+
         async def read_ffmpeg_stdout():
             loop = asyncio.get_event_loop()
             nonlocal pcm_buffer
@@ -116,16 +118,18 @@ async def handle_websocket(websocket: WebSocket):
             beg = time()
 
             while True:
-
-                logger.info("Inside audio processing loop...")
-
                 try:
+                    logger.info("Inside audio processing loop...")
                     elapsed_time = int(time() - beg)
                     beg = time()
+
                     if ffmpeg_process is None:
                         logger.error("FFmpeg process failed to start.")
                         return
                     
+                    if ffmpeg_process.poll() is not None:  
+                        logger.error("FFmpeg process exited unexpectedly.2")
+
                     # Read audio chunk from FFmpeg process
                     chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, 32000 * max(1, elapsed_time))
                     if not chunk:
@@ -165,9 +169,11 @@ async def handle_websocket(websocket: WebSocket):
                 try:
                     # Receive incoming WebM audio chunks from the client
                     message = await websocket.receive_bytes()
-                    # Pass them to ffmpeg via stdin
-                    ffmpeg_process.stdin.write(message)
-                    ffmpeg_process.stdin.flush()
+                    if ffmpeg_process.stdin:
+                        ffmpeg_process.stdin.write(message)
+                        logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
+                        await asyncio.sleep(0.01)  # Small delay to prevent overload
+                        ffmpeg_process.stdin.flush()
                 except Exception as e:
                     logger.error(f"Unexpected error: {e}")
                 
