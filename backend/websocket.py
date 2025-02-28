@@ -6,89 +6,12 @@ from model.whisper_asr import backend_factory
 from backend.logging_config import logger
 from config.settings import settings
 from time import time
-from backend.utils.methods import remove_punctuation
+from backend.utils.methods import confirmation_process, sentence_trim_buffer, threshold_trim_buffer, model_transcribe
 
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
 BYTES_PER_SEC = SAMPLE_RATE * BYTES_PER_SAMPLE
 asr, _ = backend_factory(settings)
-
-def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
-    sliced_tokenize_transcription = [remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription]
-
-    if len(confirmed_transciption) > 0:
-        idx = len(confirmed_transciption) - 1
-        while idx != -1:
-            if confirmed_transciption[idx].strip().endswith(('.', '?', '!')):
-                if idx != len(confirmed_transciption) - 1:
-                    confirmed_transciption = confirmed_transciption[:idx + 1]
-                break
-            idx -= 1
-        if idx == -1:
-            confirmed_transciption = []        
-
-    if len(non_confirmed_transcription) == 0 or non_confirmed_transcription[0] != sliced_tokenize_transcription[0]:
-        non_confirmed_transcription = sliced_tokenize_transcription
-
-    elif len(non_confirmed_transcription) > 0:
-        idx = 0
-        while idx < min(len(non_confirmed_transcription), len(sliced_tokenize_transcription)):
-            if (non_confirmed_transcription[idx]).lower() == (sliced_tokenize_transcription[idx]).lower():
-                confirmed_transciption.append(non_confirmed_transcription[idx])
-                idx += 1
-            else:
-                break
-        if idx > len(non_confirmed_transcription):
-            non_confirmed_transcription.extend(sliced_tokenize_transcription[idx:])
-        else:
-            non_confirmed_transcription[idx:] = sliced_tokenize_transcription[idx:]
-
-    return non_confirmed_transcription, confirmed_transciption
-
-
-def trim_audio_buffer_offset(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, sample_rate=16000, bytes_per_sample=2):
-
-    if not confirmed_transcription:
-        return 0, non_confirmed_transcription  # No confirmed sentences to remove
-    
-    # Find the last confirmed sentence ending with ., ?, or !
-    last_sentence = None
-    for sentence in reversed(confirmed_transcription):
-        if sentence.strip().endswith(('.', '?', '!')):
-            last_sentence = sentence
-            break
-
-
-    if not last_sentence:
-        return 0, non_confirmed_transcription  # No complete sentence found, do not trim buffer
-    
-    confirmed_words = last_sentence.strip()
-    end_time = None
-    end_word_idx = 0
-    
-    # Find the corresponding end timestamp of the last word in the sentence
-    for start, end, word in tokenize_transcription:
-        if confirmed_words in remove_punctuation(word):
-            end_time = end
-    
-    for idx in range(len(non_confirmed_transcription)):
-        if confirmed_words in non_confirmed_transcription[idx]:
-            end_word_idx = idx
-    
-    if end_time is None:
-        return 0, non_confirmed_transcription  # No match found, do not trim buffer
-    
-    # Compute bytes to remove
-    bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
-    # Trim buffer   
-    return bytes_to_remove, non_confirmed_transcription[end_word_idx + 1:]
-
-
-def model_transcribe(pcm_array):
-
-    transcription = asr.transcribe(pcm_array)
-    tokenize_transcription = asr.ts_words(transcription)
-    return tokenize_transcription
 
 async def handle_websocket(websocket: WebSocket):
 
@@ -108,11 +31,11 @@ async def handle_websocket(websocket: WebSocket):
         logger.info("Starting audio processing loop...")
 
         async def read_ffmpeg_stdout():
+
             loop = asyncio.get_event_loop()
             nonlocal pcm_buffer
             transcribe = []
             confirmed_transciption = []
-            offset_buffer = 0
             beg = time()
 
             while True:
@@ -138,25 +61,23 @@ async def handle_websocket(websocket: WebSocket):
                             logger.warning("FFmpeg stdout closed.")
                             break
 
+                    # Add to buffer from ffmpeg
                     pcm_buffer.extend(chunk)
-                    logger.info(f"chunk size: {len(chunk)} bytes")
-                    logger.info(f"Buffer size: {len(pcm_buffer)} bytes")
 
                     if len(pcm_buffer) >= BYTES_PER_SEC:
                         # Convert audio buffer to numpy 
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
 
                         # Transcribe the audio and send back a response
-                        tokenize_transcription = model_transcribe(pcm_array)
+                        tokenize_transcription = model_transcribe(pcm_array, asr)
 
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
 
                         # Trimming buffer when reach to 30s or end of sentence
-                        offset_buffer, transcribe = trim_audio_buffer_offset(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
-                        pcm_buffer = pcm_buffer[offset_buffer:]
-                        
-                        logger.info(f"confirmed_transciption: {' '.join(confirmed_transciption)}")
+                        pcm_buffer, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                        pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
 
