@@ -80,7 +80,7 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
             end_word_idx = idx
 
     if tokenize_transcription[-1][1] == end_time:
-        return bytearray(), non_confirmed_transcription[end_word_idx + 1:]
+        return -1, non_confirmed_transcription[end_word_idx + 1:]
     
     # Compute bytes to remove
     bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
