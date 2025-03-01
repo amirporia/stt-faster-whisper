@@ -29,7 +29,7 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
 
     confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption)
 
-    if len(non_confirmed_transcription) == 0 or non_confirmed_transcription[0] != sliced_tokenize_transcription[0]:
+    if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and non_confirmed_transcription[0] != sliced_tokenize_transcription[0]):
         non_confirmed_transcription = sliced_tokenize_transcription
 
     elif len(non_confirmed_transcription) > 0:
@@ -50,7 +50,7 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
 
 def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE):
 
-    if not confirmed_transcription:
+    if len(confirmed_transcription) == 0:
         return buffer, non_confirmed_transcription  # No confirmed sentences to remove
     
     # Find the last confirmed sentence ending with ., ?, or !
