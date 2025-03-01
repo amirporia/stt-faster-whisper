@@ -82,7 +82,11 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
     
     # Compute bytes to remove
     bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
+
     # Trim buffer   
+    if bytes_to_remove == len(buffer)-1:
+        return bytearray(), non_confirmed_transcription[end_word_idx + 1:]
+        
     return buffer[bytes_to_remove:], non_confirmed_transcription[end_word_idx + 1:]
 
 
@@ -99,7 +103,12 @@ def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, c
         if len(confirmed_transcription) > 0:
             non_confirmed_transcription.extend([remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription])
 
-        return buffer[int(end_time * sample_rate * bytes_per_sample):], confirmed_transcription, non_confirmed_transcription
+        bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
+
+        if bytes_to_remove == len(buffer)-1:
+            return  bytearray(), confirmed_transcription, non_confirmed_transcription
+        
+        return buffer[bytes_to_remove:], confirmed_transcription, non_confirmed_transcription
     
     return buffer, confirmed_transcription, non_confirmed_transcription
 
