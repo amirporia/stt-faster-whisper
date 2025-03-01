@@ -6,12 +6,19 @@ from model.whisper_asr import backend_factory
 from backend.logging_config import logger
 from config.settings import settings
 from time import time
-from backend.utils.methods import confirmation_process, sentence_trim_buffer, threshold_trim_buffer, model_transcribe
+from backend.utils.methods import confirmation_process, sentence_trim_buffer, threshold_trim_buffer
 
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
 BYTES_PER_SEC = SAMPLE_RATE * BYTES_PER_SAMPLE
+
 asr, _ = backend_factory(settings)
+
+def model_transcribe(pcm_array):
+
+    transcription = asr.transcribe(pcm_array)
+    tokenize_transcription = asr.ts_words(transcription)
+    return tokenize_transcription
 
 async def handle_websocket(websocket: WebSocket):
 
@@ -69,13 +76,16 @@ async def handle_websocket(websocket: WebSocket):
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
 
                         # Transcribe the audio and send back a response
-                        tokenize_transcription = model_transcribe(pcm_array, asr)
+                        tokenize_transcription = model_transcribe(pcm_array)
 
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
 
-                        # Trimming buffer when reach to 30s or end of sentence
-                        pcm_buffer, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                        # Trimming buffer when reach to end of sentence
+                        pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                        pcm_buffer = pcm_buffer[pcm_buffer_idx:]
+                        
+                        # Trimming buffer when reach to 30s
                         pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
 
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}

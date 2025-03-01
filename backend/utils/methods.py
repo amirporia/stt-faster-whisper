@@ -26,11 +26,8 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption):
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
 
     sliced_tokenize_transcription = [remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription]
-    print(f"1111111111111111111: {confirmed_transciption}")
+
     confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption)
-    print(f"2222222222222222222: {sliced_tokenize_transcription}")
-    print(f"3333333333333333333: {confirmed_transciption}")
-    print(f"4444444444444444444: {non_confirmed_transcription}")
 
     if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and non_confirmed_transcription[0] != sliced_tokenize_transcription[0]):
         non_confirmed_transcription = sliced_tokenize_transcription
@@ -51,12 +48,10 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
     return non_confirmed_transcription, confirmed_transciption
 
 
-def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE):
-    print(f"55555555555555555555: {tokenize_transcription}")
-    print(f"66666666666666666666: {non_confirmed_transcription}")
-    print(f"77777777777777777777: {confirmed_transcription}")
+def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE):
+
     if len(confirmed_transcription) == 0:
-        return buffer, non_confirmed_transcription  # No confirmed sentences to remove
+        return 0, non_confirmed_transcription  # No confirmed sentences to remove
     
     # Find the last confirmed sentence ending with ., ?, or !
     last_sentence = None
@@ -65,9 +60,8 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
             last_sentence = sentence
             break
 
-
     if not last_sentence:
-        return buffer, non_confirmed_transcription  # No complete sentence found, do not trim buffer
+        return 0, non_confirmed_transcription  # No complete sentence found, do not trim buffer
     
     confirmed_words = last_sentence.strip()
     end_time = None
@@ -79,7 +73,7 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
             end_time = end
 
     if end_time is None:
-        return buffer, non_confirmed_transcription  # No match found, do not trim buffer
+        return 0, non_confirmed_transcription  # No match found, do not trim buffer
     
     for idx in range(len(non_confirmed_transcription)):
         if confirmed_words in non_confirmed_transcription[idx]:
@@ -92,17 +86,19 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
     bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
 
     # Trim buffer  
-    return buffer[bytes_to_remove:], non_confirmed_transcription[end_word_idx + 1:]
+    return bytes_to_remove, non_confirmed_transcription[end_word_idx + 1:]
 
 
 def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE):
     
     if int(len(buffer)/(sample_rate * bytes_per_sample)) >= 30 and len(tokenize_transcription) > 0:
+
         non_confirmed_transcription = []
         confirmed_transcription = trim_last_incomplete_confirmed_sentence(confirmed_transcription)
         end_time = 0
+
         while end_time < 30 and len(tokenize_transcription) > 0:
-            a,end_time, word = tokenize_transcription.pop(0)
+            a, end_time, word = tokenize_transcription.pop(0)
             confirmed_transcription.append(word.strip())
         
         confirmed_transcription[-1] = confirmed_transcription[-1] + ".."
@@ -114,10 +110,3 @@ def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, c
         return bytearray(), confirmed_transcription, non_confirmed_transcription
     
     return buffer, confirmed_transcription, non_confirmed_transcription
-
-
-def model_transcribe(pcm_array, asr):
-
-    transcription = asr.transcribe(pcm_array)
-    tokenize_transcription = asr.ts_words(transcription)
-    return tokenize_transcription
