@@ -78,7 +78,7 @@ async def handle_websocket(websocket: WebSocket):
                         # Transcribe the audio and send back a response
                         tokenize_transcription = model_transcribe(pcm_array)
 
-                        print(f"model wisper: {"".join([(" ".join(t.split())) for a,b,t in tokenize_transcription])}")
+                        print(f"model wisper: {" ".join([(" ".join(t.split())) for a,b,t in tokenize_transcription])}")
 
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
@@ -91,7 +91,7 @@ async def handle_websocket(websocket: WebSocket):
                         else:
                             pcm_buffer = pcm_buffer[pcm_buffer_idx:]
 
-                        print(f"After Wispere: {"".join([(" ".join(t.split())) for a,b,t in model_transcribe(pcm_array)])}")
+                        print(f"After Wispere: {" ".join([(" ".join(t.split())) for a,b,t in model_transcribe(pcm_array)])}")
                         
                         # Trimming buffer when reach to 30s
                         pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
