@@ -26,8 +26,11 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption):
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
 
     sliced_tokenize_transcription = [remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription]
-
+    print(f"###############################:  {sliced_tokenize_transcription}")
+    print(f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@: {confirmed_transciption}")
     confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption)
+    print(f"*******************************: {confirmed_transciption}")
+    print(f"&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&: {non_confirmed_transcription}")
 
     if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and non_confirmed_transcription[0] != sliced_tokenize_transcription[0]):
         non_confirmed_transcription = sliced_tokenize_transcription
