@@ -67,12 +67,13 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
     confirmed_words = last_sentence.strip()
     end_time = None
     end_word_idx = 0
-    
+    print(f"tokenize_transcription: {tokenize_transcription}")
+    print(f"confirmed_words: {confirmed_words}")
     # Find the corresponding end timestamp of the last word in the sentence
     for start, end, word in tokenize_transcription:
         if confirmed_words in remove_punctuation(word):
             end_time = end
-    
+    print(f"end_time: {end_time}")
     for idx in range(len(non_confirmed_transcription)):
         if confirmed_words in non_confirmed_transcription[idx]:
             end_word_idx = idx
