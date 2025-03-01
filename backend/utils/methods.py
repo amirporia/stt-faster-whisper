@@ -100,7 +100,7 @@ def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, c
             a,end_time, word = tokenize_transcription.pop(0)
             confirmed_transcription.append(word.strip())
 
-        if len(confirmed_transcription) > 0:
+        if len(tokenize_transcription) > 0:
             non_confirmed_transcription.extend([remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription])
 
         bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
