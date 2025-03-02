@@ -83,7 +83,7 @@ async def handle_websocket(websocket: WebSocket):
 
                         # Trimming buffer when reach to end of sentence
                         pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
-                        print(f"&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& {pcm_buffer_idx}")
+
                         if pcm_buffer_idx == -1:
                             pcm_buffer = bytearray()
                         else:

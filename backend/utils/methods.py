@@ -26,6 +26,9 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption):
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
 
     sliced_tokenize_transcription = [remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription]
+    print(f"input_1: {" ".join(sliced_tokenize_transcription)}")
+    print(f"confirmed_1: {" ".join(confirmed_transciption)}")
+    print(f"non_confirmed_1: {" ".join(non_confirmed_transcription)}")
 
     confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption)
 
@@ -49,7 +52,9 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
 
 
 def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE):
-
+    print(f"input_2: {" ".join([remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription])}")
+    print(f"confirmed_2: {" ".join(confirmed_transcription)}")
+    print(f"non_confirmed_2: {" ".join(non_confirmed_transcription)}")
     if len(confirmed_transcription) == 0:
         return 0, non_confirmed_transcription  # No confirmed sentences to remove
     
