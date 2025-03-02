@@ -82,7 +82,6 @@ async def handle_websocket(websocket: WebSocket):
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
 
-                        print(f"*********: {" ".join([" ".join(t.split()) for a,b,t in tokenize_transcription])}")
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
   
@@ -118,7 +117,7 @@ async def handle_websocket(websocket: WebSocket):
                     message = await websocket.receive_bytes()
                     if ffmpeg_process.stdin:
                         ffmpeg_process.stdin.write(message)
-                        # logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
+                        logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
                         await asyncio.sleep(0.01)  # Small delay to prevent overload
                         ffmpeg_process.stdin.flush()
                 except Exception as e:
