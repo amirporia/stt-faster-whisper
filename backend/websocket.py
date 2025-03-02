@@ -88,6 +88,10 @@ async def handle_websocket(websocket: WebSocket):
                             pcm_buffer = bytearray()
                         else:
                             pcm_buffer = pcm_buffer[pcm_buffer_idx:]
+                            print(f"non_confirmed_########: {" ".join([" ".join(t.split()) for a,b,t in model_transcribe(np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0)])}")
+                        
+                        pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
+                        tokenize_transcription = model_transcribe(pcm_array)
                         
                         # Trimming buffer when reach to 30s
                         pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
