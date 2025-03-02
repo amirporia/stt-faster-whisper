@@ -47,7 +47,7 @@ async def handle_websocket(websocket: WebSocket):
 
             while True:
                 try:
-                    # logger.info("Inside audio processing loop...")
+                    logger.info("Inside audio processing loop...")
                     elapsed_time = int(time() - beg)
                     beg = time()
 
