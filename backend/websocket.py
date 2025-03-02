@@ -107,21 +107,18 @@ async def handle_websocket(websocket: WebSocket):
                     logger.error(f"Error processing audio: {e}")
                     break
 
-        stdout_reader_task = asyncio.create_task(read_ffmpeg_stdout())
+        reader_task = asyncio.create_task(read_ffmpeg_stdout())
 
         # Main WebSocket loop to receive audio data and send to FFmpeg
         try:
             while True:
-                try:
-                    # Receive incoming WebM audio chunks from the client
-                    message = await websocket.receive_bytes()
-                    if ffmpeg_process.stdin:
-                        ffmpeg_process.stdin.write(message)
-                        logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
-                        await asyncio.sleep(0.01)  # Small delay to prevent overload
-                        ffmpeg_process.stdin.flush()
-                except Exception as e:
-                    logger.error(f"Unexpected error: {e}")
+                # Receive incoming WebM audio chunks from the client
+                message = await websocket.receive_bytes()
+                if ffmpeg_process.stdin:
+                    ffmpeg_process.stdin.write(message)
+                    logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
+                    await asyncio.sleep(0.01)  # Small delay to prevent overload
+                    ffmpeg_process.stdin.flush()
                 
         except WebSocketDisconnect:
             print("WebSocket connection closed.")
@@ -129,17 +126,12 @@ async def handle_websocket(websocket: WebSocket):
             print(f"Error in websocket loop: {e}")
         finally:
             # Clean up ffmpeg and the reader task
-            try:
+            await websocket.close()
+            reader_task.cancel()
+            if ffmpeg_process.stdin:
                 ffmpeg_process.stdin.close()
-            except:
-                pass
-            stdout_reader_task.cancel()
-
-            try:
+            if ffmpeg_process.stdout:
                 ffmpeg_process.stdout.close()
-            except:
-                pass
-
             ffmpeg_process.wait()
     
     except Exception as e:
