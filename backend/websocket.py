@@ -80,21 +80,19 @@ async def handle_websocket(websocket: WebSocket):
 
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
-
-                        # Trimming buffer when reach to end of sentence
-                        pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
-
-                        if pcm_buffer_idx == -1:
-                            pcm_buffer = bytearray()
+  
+                        if int(len(pcm_buffer)/(SAMPLE_RATE * BYTES_PER_SAMPLE)) >= 30 and len(tokenize_transcription) > 0:
+                            # Trimming buffer when reach to 30s
+                            pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
                         else:
-                            pcm_buffer = pcm_buffer[pcm_buffer_idx:]
-                            print(f"non_confirmed_########: {" ".join([" ".join(t.split()) for a,b,t in model_transcribe(np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0)])}")
-                        
-                        pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
-                        tokenize_transcription = model_transcribe(pcm_array)
-                        
-                        # Trimming buffer when reach to 30s
-                        pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                            # Trimming buffer when reach to end of sentence
+                            pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+
+                            if pcm_buffer_idx == -1:
+                                pcm_buffer = bytearray()
+                            else:
+                                pcm_buffer = pcm_buffer[pcm_buffer_idx:]
+
 
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)

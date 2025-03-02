@@ -49,8 +49,7 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
 
 
 def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, confirmed_transcription, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE):
-    print(f"input******: {" ".join([remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription])}")
-    print(f"non_confirmed******: {" ".join(non_confirmed_transcription)}")
+
     if len(confirmed_transcription) == 0:
         return 0, non_confirmed_transcription  # No confirmed sentences to remove
     
@@ -85,7 +84,7 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
     
     # Compute bytes to remove
     bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
-    print(f"non_confirmed_########: {" ".join(non_confirmed_transcription[end_word_idx + 1:])}")
+
     # Trim buffer  
     return bytes_to_remove, non_confirmed_transcription[end_word_idx + 1:]
 
