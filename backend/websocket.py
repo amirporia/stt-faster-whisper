@@ -77,8 +77,10 @@ async def handle_websocket(websocket: WebSocket):
 
                         # Transcribe the audio and send back a response
                         tokenize_transcription = model_transcribe(pcm_array)
-                        offset_ts = tokenize_transcription[0][0]
-                        tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
+                        if len(tokenize_transcription) > 0:
+                            offset_ts = tokenize_transcription[0][0]
+                            tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
+                            
                         print(f"*********: {" ".join([" ".join(t.split()) for a,b,t in tokenize_transcription])}")
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
