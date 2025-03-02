@@ -80,7 +80,7 @@ async def handle_websocket(websocket: WebSocket):
                         if len(tokenize_transcription) > 0:
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
-                            
+
                         print(f"*********: {" ".join([" ".join(t.split()) for a,b,t in tokenize_transcription])}")
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
@@ -93,7 +93,7 @@ async def handle_websocket(websocket: WebSocket):
                             pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
 
                             if pcm_buffer_idx == -1:
-                                pcm_buffer = bytearray()
+                                pcm_buffer = []
                             else:
                                 pcm_buffer = pcm_buffer[pcm_buffer_idx:]
 
