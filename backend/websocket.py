@@ -72,6 +72,7 @@ async def handle_websocket(websocket: WebSocket):
                     pcm_buffer.extend(chunk)
 
                     if len(pcm_buffer) >= BYTES_PER_SEC:
+
                         # Convert audio buffer to numpy 
                         pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
 
@@ -96,6 +97,8 @@ async def handle_websocket(websocket: WebSocket):
                                 pcm_buffer.clear()
                             else:
                                 pcm_buffer = bytearray(pcm_buffer[pcm_buffer_idx:])
+                                if len(pcm_buffer) % 2 != 0:
+                                    pcm_buffer = pcm_buffer[1:]
 
 
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
