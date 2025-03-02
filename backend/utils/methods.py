@@ -84,7 +84,8 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
     
     # Compute bytes to remove
     bytes_to_remove = int(end_time * sample_rate * bytes_per_sample)
-
+    print(f"@@@@@@@: {end_time}")
+    print(f"&&&&&&&: {tokenize_transcription[0]}")
     # Trim buffer  
     return bytes_to_remove, non_confirmed_transcription[end_word_idx + 1:]
 
