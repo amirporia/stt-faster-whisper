@@ -13,7 +13,7 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption, confirm_offs
         idx = len(confirmed_transciption) - 1
         while idx != -1:
             if confirm_offset_time == -1:
-                if confirmed_transciption[idx].strip().endswith(('.', '?', '!')):
+                if confirmed_transciption[idx][2].strip().endswith(('.', '?', '!')):
                     if idx != len(confirmed_transciption) - 1:
                         confirmed_transciption = confirmed_transciption[:idx + 1]
                     break
