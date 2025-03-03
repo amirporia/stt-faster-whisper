@@ -77,8 +77,8 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
     # Find the last confirmed sentence ending with ., ?, or !
     last_sentence = None
     for sentence in reversed(confirmed_transcription):
-        if sentence.strip().endswith(('.', '?', '!')):
-            last_sentence = sentence
+        if sentence[2].strip().endswith(('.', '?', '!')):
+            last_sentence = sentence[2]
             break
 
     if not last_sentence:
@@ -116,10 +116,10 @@ def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, c
     end_time = 0
 
     while end_time < 30 and len(tokenize_transcription) > 0:
-        a, end_time, word = tokenize_transcription.pop(0)
-        confirmed_transcription.append(word.strip())
+        t = tokenize_transcription.pop(0)
+        confirmed_transcription.append(t)
     
-    confirmed_transcription[-1] = confirmed_transcription[-1] + ".."
+    confirmed_transcription[-1] = (*confirmed_transcription[-1][:2], confirmed_transcription[-1][2] + "..")
 
     if len(tokenize_transcription) > 0:
         non_confirmed_transcription.extend([(a,b,remove_punctuation(" ".join(t.split()))) for a,b,t in tokenize_transcription])
