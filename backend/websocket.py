@@ -45,6 +45,7 @@ async def handle_websocket(websocket: WebSocket):
             transcribe = []
             confirmed_transciption = []
             beg = time()
+            confirm_offset_time = -1
 
             while True:
                 try:
@@ -57,7 +58,7 @@ async def handle_websocket(websocket: WebSocket):
                         return
                     
                     if ffmpeg_process.poll() is not None:  
-                        logger.error("FFmpeg process exited unexpectedly.2")
+                        logger.error("FFmpeg process exited unexpectedly.")
 
                     # Read audio chunk from FFmpeg process
                     chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, 32000 * max(1, elapsed_time))
@@ -79,19 +80,20 @@ async def handle_websocket(websocket: WebSocket):
 
                         # Transcribe the audio and send back a response
                         tokenize_transcription = model_transcribe(pcm_array)
+
                         if len(tokenize_transcription) > 0:
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
 
                         # Confirmed the transcribe by reviewing two times
-                        transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
+                        transcribe, confirmed_transciption, confirm_offset_time = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption, confirm_offset_time)
   
                         if int(len(pcm_buffer)/(SAMPLE_RATE * BYTES_PER_SAMPLE)) >= 30 and len(tokenize_transcription) > 0:
                             # Trimming buffer when reach to 30s
-                            pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                            pcm_buffer, confirmed_transciption, transcribe, confirm_offset_time = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
                         else:
                             # Trimming buffer when reach to end of sentence
-                            pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                            pcm_buffer_idx, transcribe, confirm_offset_time = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, confirm_offset_time=confirm_offset_time, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
 
                             if pcm_buffer_idx == -1:
                                 pcm_buffer.clear()
