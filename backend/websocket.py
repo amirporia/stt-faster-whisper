@@ -49,7 +49,7 @@ async def handle_websocket(websocket: WebSocket):
 
             while True:
                 try:
-                    logger.info("Inside audio processing loop...")
+                    # logger.info("Inside audio processing loop...")
                     elapsed_time = int(time() - beg)
                     beg = time()
 
@@ -119,7 +119,7 @@ async def handle_websocket(websocket: WebSocket):
                 message = await websocket.receive_bytes()
                 if ffmpeg_process.stdin:
                     ffmpeg_process.stdin.write(message)
-                    logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
+                    # logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
                     await asyncio.sleep(0.01)  # Small delay to prevent overload
                     ffmpeg_process.stdin.flush()
                 

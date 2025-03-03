@@ -33,7 +33,7 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption, confirm_offs
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption, confirm_offset_time):
     
     sliced_tokenize_transcription = [(a,b, remove_punctuation(" ".join(t.split()))) for a,b,t in tokenize_transcription]
-    print(f"%%%%%%%%%% {confirmed_transciption}")
+
     if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and non_confirmed_transcription[0][2] != sliced_tokenize_transcription[0][2]):
         non_confirmed_transcription = sliced_tokenize_transcription
 
@@ -53,8 +53,8 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
         confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption, confirm_offset_time)
 
         idx = 0
-        for slice_idx in range(len(sliced_tokenize_transcription)):
-            if sliced_tokenize_transcription[slice_idx][0] >= confirm_offset_time:
+        for slice_idx in range(len(non_confirmed_transcription)):
+            if non_confirmed_transcription[slice_idx][0] >= confirm_offset_time:
                 idx = slice_idx
                 break
 
