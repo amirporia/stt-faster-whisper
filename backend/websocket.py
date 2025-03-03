@@ -103,7 +103,7 @@ async def handle_websocket(websocket: WebSocket):
                                     pcm_buffer = pcm_buffer[1:]
 
 
-                        response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
+                        response = {"lines": [{"speaker": "0", "text": " ".join(item[2] for item in confirmed_transciption)}]}
                         await websocket.send_json(response)
 
                 except Exception as e:
