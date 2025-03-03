@@ -38,14 +38,15 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
 
     elif len(non_confirmed_transcription) > 0:
         print("11111111111111111111111111111")
-        if confirm_offset_time == -1:
-            if confirmed_transciption[-1][1] >= 5:
-                confirm_offset_time = confirmed_transciption[-1][1]
-        else:
-            for ct_word in reversed(confirmed_transciption):
-                if ct_word[1] - confirm_offset_time >= 5:
-                    confirm_offset_time = ct_word[1]
-                    break
+        if len(confirmed_transciption) > 0:
+            if confirm_offset_time == -1:
+                if confirmed_transciption[-1][1] >= 5:
+                    confirm_offset_time = confirmed_transciption[-1][1]
+            else:
+                for ct_word in reversed(confirmed_transciption):
+                    if ct_word[1] - confirm_offset_time >= 5:
+                        confirm_offset_time = ct_word[1]
+                        break
         print("222222222222222222222222222")                    
         idx = 0
         for slice_idx in range(len(sliced_tokenize_transcription)):
