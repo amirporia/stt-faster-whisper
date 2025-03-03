@@ -24,48 +24,55 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption, confirm_offs
                 break
             idx -= 1
 
+        if idx == -1:
+            return []
+        
     return confirmed_transciption
 
 
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption, confirm_offset_time):
     
     sliced_tokenize_transcription = [(a,b, remove_punctuation(" ".join(t.split()))) for a,b,t in tokenize_transcription]
-
-    confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption, confirm_offset_time)
-
+    print(f"%%%%%%%%%% {confirmed_transciption}")
     if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and non_confirmed_transcription[0][2] != sliced_tokenize_transcription[0][2]):
         non_confirmed_transcription = sliced_tokenize_transcription
 
     elif len(non_confirmed_transcription) > 0:
-        print("11111111111111111111111111111")
+        
         if len(confirmed_transciption) > 0:
             if confirm_offset_time == -1:
                 if confirmed_transciption[-1][1] >= 5:
                     confirm_offset_time = confirmed_transciption[-1][1]
             else:
                 for ct_word in reversed(confirmed_transciption):
-                    if ct_word[1] - confirm_offset_time >= 5:
+                    if (ct_word[1] - confirm_offset_time) >= 5:
                         confirm_offset_time = ct_word[1]
                         break
-        print("222222222222222222222222222")                    
+        print(f"$$$$$$$$ {confirm_offset_time}")
+        print(f"@@@@@@@@ {confirmed_transciption}")
+        confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption, confirm_offset_time)
+
         idx = 0
         for slice_idx in range(len(sliced_tokenize_transcription)):
             if sliced_tokenize_transcription[slice_idx][0] >= confirm_offset_time:
                 idx = slice_idx
                 break
-        print("33333333333333333333333333")        
+
         while idx < min(len(non_confirmed_transcription), len(sliced_tokenize_transcription)):
             if (non_confirmed_transcription[idx][2]).lower() == (sliced_tokenize_transcription[idx][2]).lower():
                 confirmed_transciption.append(non_confirmed_transcription[idx])
                 idx += 1
             else:
                 break
-        print("44444444444444444444444444")        
+
         if idx > len(non_confirmed_transcription):
             non_confirmed_transcription.extend(sliced_tokenize_transcription[idx:])
         else:
             non_confirmed_transcription[idx:] = sliced_tokenize_transcription[idx:]
 
+    print(f"********** {non_confirmed_transcription}")
+    print(f"########## {confirmed_transciption}")
+    print(f"&&&&&&&&&& {confirm_offset_time}")
     return non_confirmed_transcription, confirmed_transciption, confirm_offset_time
 
 
