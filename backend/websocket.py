@@ -40,7 +40,7 @@ async def handle_websocket(websocket: WebSocket):
 
         async def read_ffmpeg_stdout():
 
-            loop = asyncio.get_event_loop()
+            # loop = asyncio.get_event_loop()
             nonlocal pcm_buffer
             transcribe = []
             confirmed_transciption = []
@@ -60,11 +60,9 @@ async def handle_websocket(websocket: WebSocket):
                         logger.error("FFmpeg process exited unexpectedly.2")
 
                     # Read audio chunk from FFmpeg process
-                    chunk = await loop.run_in_executor(None, ffmpeg_process.stdout.read, 32000 * max(1, elapsed_time))
+                    chunk = await asyncio.to_thread(ffmpeg_process.stdout.read, 32000 * max(1, elapsed_time))
                     if not chunk:
-                        chunk = await loop.run_in_executor(
-                            None, ffmpeg_process.stdout.read, 4096
-                        )
+                        chunk = await asyncio.to_thread(ffmpeg_process.stdout.read, 4096)
                         if not chunk:
                             logger.warning("FFmpeg stdout closed.")
                             break
@@ -97,10 +95,10 @@ async def handle_websocket(websocket: WebSocket):
                                 pcm_buffer.clear()
                             else:
                                 pcm_buffer = bytearray(pcm_buffer[pcm_buffer_idx:])
-                                if len(pcm_buffer) % 2 != 0:
-                                    pcm_buffer = pcm_buffer[1:]
 
-
+                        if len(pcm_buffer) % 2 != 0:
+                            pcm_buffer = pcm_buffer[1:]
+                            
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
 
