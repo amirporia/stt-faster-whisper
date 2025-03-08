@@ -48,7 +48,7 @@ async def handle_websocket(websocket: WebSocket):
 
             while True:
                 try:
-                    logger.info("Inside audio processing loop...")
+                    # logger.info("Inside audio processing loop...")
                     elapsed_time = int(time() - beg)
                     beg = time()
 
@@ -83,9 +83,11 @@ async def handle_websocket(websocket: WebSocket):
                         if len(tokenize_transcription) > 0:
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
-
+                        print(f"1111111111111111: {" ".join([w.strip() for a,b,w in tokenize_transcription])}")
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
+                        print(f"2222222222222222: {" ".join(transcribe)}")
+                        print(f"3333333333333333: {" ".join(confirmed_transciption)}")
   
                         if int(len(pcm_buffer)/(SAMPLE_RATE * BYTES_PER_SAMPLE)) >= 30 and len(tokenize_transcription) > 0:
                             # Trimming buffer when reach to 30s
@@ -99,6 +101,8 @@ async def handle_websocket(websocket: WebSocket):
                             else:
                                 pcm_buffer = bytearray(pcm_buffer[pcm_buffer_idx:])
                             
+                        print(f"444444444444444: {" ".join(transcribe)}")
+                        print(f"555555555555555: {" ".join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
 
@@ -115,7 +119,7 @@ async def handle_websocket(websocket: WebSocket):
                 message = await websocket.receive_bytes()
                 if ffmpeg_process.stdin:
                     ffmpeg_process.stdin.write(message)
-                    logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
+                    # logger.info(f"Writing to FFmpeg stdin... ******************** message length = {len(message)}")
                     await asyncio.sleep(0.01)  # Small delay to prevent overload
                     ffmpeg_process.stdin.flush()
                 
