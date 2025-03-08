@@ -69,7 +69,7 @@ def sentence_trim_buffer(tokenize_transcription, non_confirmed_transcription, co
 
     # Find the corresponding end timestamp of the last word in the sentence
     for start, end, word in tokenize_transcription:
-        if confirmed_words in remove_punctuation(word):
+        if confirmed_words in word:
             end_time = end
 
     if end_time is None:
