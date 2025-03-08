@@ -98,9 +98,9 @@ async def handle_websocket(websocket: WebSocket):
 
                             if pcm_buffer_idx == -1:
                                 pcm_buffer.clear()
-                            else:
+                            elif pcm_buffer_idx != 0:
                                 pcm_buffer = bytearray(pcm_buffer[pcm_buffer_idx:])
-                            
+                        print(f"%%%%%%%%%%%%%%%: {pcm_buffer_idx}")    
                         print(f"444444444444444: {" ".join(transcribe)}")
                         print(f"555555555555555: {" ".join(confirmed_transciption)}")
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}

@@ -109,7 +109,7 @@ def add_shared_args(parser):
     parser.add_argument(
         "--buffer_trimming_sec",
         type=float,
-        default=15,
+        default=30,
         help="Buffer trimming length threshold in seconds. If buffer length is longer, trimming sentence/segment is triggered.",
     )
     parser.add_argument(
