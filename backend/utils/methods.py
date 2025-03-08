@@ -4,7 +4,7 @@ SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
 
 def remove_punctuation(text):
-    return re.sub(r'[^\w\s.!?‽？！，。]', '', text)
+    return re.sub(r'[^\w\s]', '', text)
 
 
 def trim_last_incomplete_confirmed_sentence(confirmed_transciption):
@@ -25,18 +25,18 @@ def trim_last_incomplete_confirmed_sentence(confirmed_transciption):
 
 def confirmation_process(non_confirmed_transcription, tokenize_transcription, confirmed_transciption):
 
-    sliced_tokenize_transcription = [remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription]
+    sliced_tokenize_transcription = [" ".join(t.split()) for a,b,t in tokenize_transcription]
 
     confirmed_transciption = trim_last_incomplete_confirmed_sentence(confirmed_transciption)
 
-    if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and non_confirmed_transcription[0] != sliced_tokenize_transcription[0]):
+    if len(non_confirmed_transcription) == 0 or (len(sliced_tokenize_transcription) > 0 and remove_punctuation(non_confirmed_transcription[0]) != remove_punctuation(sliced_tokenize_transcription[0])):
         non_confirmed_transcription = sliced_tokenize_transcription
 
     elif len(non_confirmed_transcription) > 0:
         idx = 0
         while idx < min(len(non_confirmed_transcription), len(sliced_tokenize_transcription)):
-            if (non_confirmed_transcription[idx]).lower() == (sliced_tokenize_transcription[idx]).lower():
-                confirmed_transciption.append(non_confirmed_transcription[idx])
+            if remove_punctuation((non_confirmed_transcription[idx]).lower()) == remove_punctuation((sliced_tokenize_transcription[idx]).lower()):
+                confirmed_transciption.append(sliced_tokenize_transcription[idx])
                 idx += 1
             else:
                 break
@@ -102,7 +102,7 @@ def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, c
     confirmed_transcription[-1] = confirmed_transcription[-1] + ".."
 
     if len(tokenize_transcription) > 0:
-        non_confirmed_transcription.extend([remove_punctuation(" ".join(t.split())) for a,b,t in tokenize_transcription])
+        non_confirmed_transcription.extend([" ".join(t.split()) for a,b,t in tokenize_transcription])
         return buffer[int(end_time * sample_rate * bytes_per_sample):], confirmed_transcription, non_confirmed_transcription
     
     return bytearray(), confirmed_transcription, non_confirmed_transcription
