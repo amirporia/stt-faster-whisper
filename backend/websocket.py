@@ -83,9 +83,14 @@ async def handle_websocket(websocket: WebSocket):
                         if len(tokenize_transcription) > 0:
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
-
+                        print(f"11111111111111111: {tokenize_transcription}")
+                        print(f"22222222222222222: {" ".join([" ".join(w.split()) for a,b,w in tokenize_transcription])}")
+                        print(f"33333333333333333: {" ".join(transcribe)}")
+                        print(f"44444444444444444: {" ".join(confirmed_transciption)}")
                         # Confirmed the transcribe by reviewing two times
                         transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
+                        print(f"55555555555555555: {" ".join(transcribe)}")
+                        print(f"66666666666666666: {" ".join(confirmed_transciption)}")
                     
   
                         if int(len(pcm_buffer)/(SAMPLE_RATE * BYTES_PER_SAMPLE)) >= 30 and len(tokenize_transcription) > 0:
@@ -99,7 +104,7 @@ async def handle_websocket(websocket: WebSocket):
                                 pcm_buffer.clear()
                             elif pcm_buffer_idx != 0:
                                 pcm_buffer = bytearray(pcm_buffer[pcm_buffer_idx:])
-                                
+                        print(f"777777777777777777: {pcm_buffer_idx}")        
                         response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
                         await websocket.send_json(response)
 
