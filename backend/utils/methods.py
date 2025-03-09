@@ -40,10 +40,7 @@ def confirmation_process(non_confirmed_transcription, tokenize_transcription, co
                 idx += 1
             else:
                 break
-        if idx > len(non_confirmed_transcription):
-            non_confirmed_transcription.extend(sliced_tokenize_transcription[idx:])
-        else:
-            non_confirmed_transcription[idx:] = sliced_tokenize_transcription[idx:]
+        non_confirmed_transcription = sliced_tokenize_transcription
 
     return non_confirmed_transcription, confirmed_transciption
 
