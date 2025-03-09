@@ -14,9 +14,9 @@ BYTES_PER_SEC = SAMPLE_RATE * BYTES_PER_SAMPLE
 
 asr, _ = backend_factory(settings)
 
-def model_transcribe(pcm_array):
+def model_transcribe(pcm_array, trans):
 
-    transcription = asr.transcribe(pcm_array)
+    transcription = asr.transcribe(pcm_array, init_prompt=trans)
     tokenize_transcription = asr.ts_words(transcription)
     return tokenize_transcription
 
@@ -79,7 +79,7 @@ async def handle_websocket(websocket: WebSocket):
                             pcm_array = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float32) / 32768.0
 
                         # Transcribe the audio and send back a response
-                        tokenize_transcription = model_transcribe(pcm_array)
+                        tokenize_transcription = model_transcribe(pcm_array, " ".join(confirmed_transciption))
                         if len(tokenize_transcription) > 0:
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
