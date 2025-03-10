@@ -39,6 +39,7 @@ async def handle_websocket(websocket: WebSocket):
             transcribe = []
             confirmed_transciption = []
             beg = time()
+            confirm_offset_time = -1
 
             while True:
                 try:
@@ -72,28 +73,34 @@ async def handle_websocket(websocket: WebSocket):
                             pcm_array = np.frombuffer(pcm_buffer.copy(), dtype=np.int16)
 
                         # Transcribe the audio and send back a response
-                        tokenize_transcription = model_transcribe(pcm_array, " ".join(confirmed_transciption), SAMPLE_RATE)
+                        tokenize_transcription = model_transcribe(pcm_array, " ".join(item[2] for item in confirmed_transciption), SAMPLE_RATE)
                         if len(tokenize_transcription) > 0:
                             offset_ts = tokenize_transcription[0][0]
                             tokenize_transcription = [(a-offset_ts, b-offset_ts, t) for a,b,t in tokenize_transcription]
-           
+                        
                         # Confirmed the transcribe by reviewing two times
-                        transcribe, confirmed_transciption = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption)
+                        transcribe, confirmed_transciption, confirm_offset_time = confirmation_process(transcribe, tokenize_transcription, confirmed_transciption, confirm_offset_time)
 
+                        print(f"%%%%%%%%%%%%%%%%%%% {" ".join([w for a,b,w in confirmed_transciption])}")
+                        print(f"%%%%%%%%%%%%%%%%%%% {confirmed_transciption}")
+                        print(f"^^^^^^^^^^^^^^^^^^^ {confirm_offset_time}")
   
                         if int(len(pcm_buffer)/(SAMPLE_RATE * BYTES_PER_SAMPLE)) >= 30 and len(tokenize_transcription) > 0:
                             # Trimming buffer when reach to 30s
-                            pcm_buffer, confirmed_transciption, transcribe = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                            pcm_buffer, confirmed_transciption, transcribe, confirm_offset_time = threshold_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, buffer=pcm_buffer, confirm_offset_time=confirm_offset_time, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
                         else:
                             # Trimming buffer when reach to end of sentence
-                            pcm_buffer_idx, transcribe = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
+                            pcm_buffer_idx, transcribe, confirm_offset_time = sentence_trim_buffer(tokenize_transcription=tokenize_transcription, confirmed_transcription=confirmed_transciption, non_confirmed_transcription=transcribe, confirm_offset_time=confirm_offset_time, sample_rate=SAMPLE_RATE, bytes_per_sample=BYTES_PER_SAMPLE)
 
                             if pcm_buffer_idx == -1:
                                 pcm_buffer.clear()
                             elif pcm_buffer_idx != 0:
                                 pcm_buffer = bytearray(pcm_buffer[pcm_buffer_idx:])
         
-                        response = {"lines": [{"speaker": "0", "text": " ".join(confirmed_transciption)}]}
+                        print(f"^^^^^^^^^^^^^^^^^^^ {" ".join([w for a,b,w in confirmed_transciption])}")
+                        print(f"^^^^^^^^^^^^^^^^^^^ {confirmed_transciption}")
+                        print(f"******************* {confirm_offset_time}")
+                        response = {"lines": [{"speaker": "0", "text": " ".join(item[2] for item in confirmed_transciption)}]}
                         await websocket.send_json(response)
 
                 except Exception as e:
