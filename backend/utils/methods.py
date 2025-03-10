@@ -1,4 +1,7 @@
 import re
+import requests
+import scipy.io.wavfile as wav
+import io
 
 SAMPLE_RATE = 16000
 BYTES_PER_SAMPLE = 2
@@ -103,3 +106,30 @@ def threshold_trim_buffer(tokenize_transcription, non_confirmed_transcription, c
         return buffer[int(end_time * sample_rate * bytes_per_sample):], confirmed_transcription, non_confirmed_transcription
     
     return bytearray(), confirmed_transcription, non_confirmed_transcription
+
+
+
+def model_transcribe(pcm_array, trans, sample_rate):
+
+    url = 'http://192.168.10.93:8000/transcribe?word=True'
+    url = url + '&prompt=' + trans
+    
+    # Convert pcm_array to WAV format in memory
+    wav_buffer = io.BytesIO()
+    wav.write(wav_buffer, sample_rate, pcm_array)
+    wav_buffer.seek(0)  # Reset buffer position
+
+    # Prepare the file for the request
+    files = {"file": ("audio.wav", wav_buffer, "audio/wav")}
+    headers = {"accept": "application/json"}  # Requests handles Content-Type
+    response = requests.post(url, headers=headers, files=files)
+
+    if response.status_code == 200:
+        res = response.json()  # Adjust according to API response
+        if len(res["segments"]) > 0:
+            return [(obj["start"], obj["end"], obj["word"]) for _obj in res["segments"] for obj in _obj["words"]]
+        else:
+            return []
+    else:
+        print(f"Error: {response.status_code}, {response.text}")
+        return []
